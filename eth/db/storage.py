@@ -1,7 +1,12 @@
+from typing import (
+    Set,
+    Tuple,
+)
+
 from eth_hash.auto import keccak
 from eth_typing import (
     Address,
-    Hash32
+    Hash32,
 )
 from eth_utils import (
     ValidationError,
@@ -184,8 +189,10 @@ class AccountStorageDB(AccountStorageDatabaseAPI):
         self._storage_lookup = StorageLookup(db, storage_root, address)
         self._storage_cache = CacheDB(self._storage_lookup)
         self._journal_storage = JournalDB(self._storage_cache)
+        self._accessed_slots: Set[int] = set()
 
     def get(self, slot: int, from_journal: bool=True) -> int:
+        self._accessed_slots.add(slot)
         key = int_to_big_endian(slot)
         lookup_db = self._journal_storage if from_journal else self._storage_cache
         try:
@@ -201,6 +208,7 @@ class AccountStorageDB(AccountStorageDatabaseAPI):
             return rlp.decode(encoded_value, sedes=rlp.sedes.big_endian_int)
 
     def set(self, slot: int, value: int) -> None:
+        self._accessed_slots.add(slot)
         key = int_to_big_endian(slot)
         if value:
             self._journal_storage[key] = rlp.encode(value)
@@ -249,6 +257,9 @@ class AccountStorageDB(AccountStorageDatabaseAPI):
             raise ValidationError(
                 f"StorageDB had a dirty journal when it needed to be clean: {journal_diff!r}"
             )
+
+    def get_accessed_slots(self) -> Tuple[int]:
+        return tuple(self._accessed_slots)
 
     @property
     def has_changed_root(self) -> bool:
