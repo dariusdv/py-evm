@@ -176,8 +176,8 @@ class BaseState(Configurable, StateAPI):
         _, account_snapshot = snapshot
         self._account_db.commit(account_snapshot)
 
-    def persist(self) -> None:
-        self._account_db.persist()
+    def persist(self) -> Dict[Address, Tuple[bool, Tuple[int]]]:
+        return self._account_db.persist()
 
     def get_witness_hashes(self):
         return set(self._account_db.get_read_node_hashes())
